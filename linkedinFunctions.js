@@ -7,17 +7,160 @@ const fs = require("fs");
 async function linkedinLogin(page, email, password) {
   console.log("Opening LinkedIn login...");
 
-  await page.goto("https://www.linkedin.com/login");
-  console.log(await page.$$("#username"));
-  page.waitForTimeout(2000);
-  await page.fill("#username", email);
-  await page.fill("#password", password);
-
-  await page.click('button[type="submit"]');
-
-  await page.waitForTimeout(5000);
-
-  console.log("Logged in successfully");
+  try {
+    // Navigate to LinkedIn login page with longer timeout and different wait conditions
+    await page.goto("https://www.linkedin.com/login", { 
+      waitUntil: "domcontentloaded", 
+      timeout: 60000 
+    });
+    
+    // Additional wait for page to settle
+    await page.waitForTimeout(3000);
+    
+    console.log(`Current URL: ${page.url()}`);
+    console.log(`Page title: ${await page.title()}`);
+    
+    // Wait for the username field to be present and visible with multiple selector attempts
+    const usernameSelectors = [
+      'input[type="email"]',
+      '#username',
+      'input[name="session_key"]',
+      'input[autocomplete="username"]'
+    ];
+    
+    let usernameFieldFound = false;
+    for (const selector of usernameSelectors) {
+      try {
+        await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
+        console.log(`Found username field with selector: ${selector}`);
+        usernameFieldFound = true;
+        break;
+      } catch (error) {
+        console.log(`Selector ${selector} not found: ${error.message}`);
+      }
+    }
+    
+    if (!usernameFieldFound) {
+      throw new Error('Could not find username field with any selector');
+    }
+    
+    // Wait for password field
+    const passwordSelectors = [
+      'input[type="password"]',
+      '#password',
+      'input[name="session_password"]',
+      'input[autocomplete="current-password"]'
+    ];
+    
+    let passwordFieldFound = false;
+    for (const selector of passwordSelectors) {
+      try {
+        await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
+        console.log(`Found password field with selector: ${selector}`);
+        passwordFieldFound = true;
+        break;
+      } catch (error) {
+        console.log(`Selector ${selector} not found: ${error.message}`);
+      }
+    }
+    
+    if (!passwordFieldFound) {
+      throw new Error('Could not find password field with any selector');
+    }
+    
+    // Fill in credentials
+    await page.fill('input[type="email"]', email);
+    await page.fill('input[type="password"]', password);
+    
+    // Click submit button
+    const submitSelectors = [
+      'button[type="submit"]',
+      '.login__form_action_container button',
+      'button[data-litms-control-urn^="login-submit"]'
+    ];
+    
+    let submitButtonFound = false;
+    for (const selector of submitSelectors) {
+      try {
+        await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
+        console.log(`Found submit button with selector: ${selector}`);
+        await page.click(selector);
+        submitButtonFound = true;
+        break;
+      } catch (error) {
+        console.log(`Submit selector ${selector} not found: ${error.message}`);
+      }
+    }
+    
+    if (!submitButtonFound) {
+      throw new Error('Could not find submit button with any selector');
+    }
+    
+    // Wait for navigation or successful login
+    await page.waitForTimeout(8000);
+    
+    // Check if login was successful by looking for elements that indicate logged-in state
+    try {
+      await page.waitForSelector('.global-nav, .feed-identity-module, .nav-item__link', { timeout: 10000 });
+      console.log("Logged in successfully");
+      return;
+    } catch (error) {
+      console.log("Login may have failed - checking for error messages or captcha...");
+      
+      // Check for error messages
+      const errorSelectors = [
+        '.alert-error',
+        '.form__label--error',
+        '.login__form_error_message',
+        '.form__label--error'
+      ];
+      
+      for (const selector of errorSelectors) {
+        const errorElement = await page.$(selector);
+        if (errorElement) {
+          const errorText = await errorElement.textContent();
+          console.log(`Login error found: ${errorText.trim()}`);
+          if (errorText.toLowerCase().includes('invalid') || 
+              errorText.toLowerCase().includes('incorrect') ||
+              errorText.toLowerCase().includes('wrong')) {
+            throw new Error(`Invalid credentials: ${errorText.trim()}`);
+          }
+          break;
+        }
+      }
+      
+      // Check for captcha or security challenge
+      const captchaSelectors = [
+        '.captcha',
+        '.challenge',
+        '[data-challenge-type]',
+        'text=/security verification/i',
+        'text=/verify your identity/i'
+      ];
+      
+      for (const selector of captchaSelectors) {
+        const captchaElement = await page.$(selector);
+        if (captchaElement) {
+          console.log('Captcha or security challenge detected');
+          throw new Error('LinkedIn requires additional verification (captcha/security check)');
+        }
+      }
+      
+      // Check if we're still on login page or got redirected
+      const currentUrl = page.url();
+      console.log(`Current URL after login attempt: ${currentUrl}`);
+      
+      if (currentUrl.includes('login') || currentUrl.includes('checkpoint') || currentUrl.includes('challenge')) {
+        throw new Error(`Login failed - still on authentication page: ${currentUrl}`);
+      }
+      
+      // If we got here, assume login might have succeeded despite no global-nav
+      console.log("Login attempt completed - assuming success if not on login page");
+    }
+  } catch (error) {
+    console.error(`Login failed with error: ${error.message}`);
+    throw error;
+  }
 }
 
 // Search Jobs Function
