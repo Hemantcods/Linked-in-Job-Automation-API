@@ -2,6 +2,9 @@ const nodemailer = require("nodemailer");
 const { chromium } = require("playwright");
 const createCsvWriter = require("csv-writer").createObjectCsvWriter;
 const fs = require("fs");
+const dotenv = require("dotenv");
+const { candidateDetailsTable, jobDescriptionTable, relevantExperienceBox } = require("./data");
+dotenv.config();
 
 // LinkedIn Login Function
 async function linkedinLogin(page, email, password) {
@@ -9,29 +12,32 @@ async function linkedinLogin(page, email, password) {
 
   try {
     // Navigate to LinkedIn login page with longer timeout and different wait conditions
-    await page.goto("https://www.linkedin.com/login", { 
-      waitUntil: "domcontentloaded", 
-      timeout: 60000 
+    await page.goto("https://www.linkedin.com/login", {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
     });
-    
+
     // Additional wait for page to settle
     await page.waitForTimeout(3000);
-    
+
     console.log(`Current URL: ${page.url()}`);
     console.log(`Page title: ${await page.title()}`);
-    
+
     // Wait for the username field to be present and visible with multiple selector attempts
     const usernameSelectors = [
       'input[type="email"]',
-      '#username',
+      "#username",
       'input[name="session_key"]',
-      'input[autocomplete="username"]'
+      'input[autocomplete="username"]',
     ];
-    
+
     let usernameFieldFound = false;
     for (const selector of usernameSelectors) {
       try {
-        await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
+        await page.waitForSelector(selector, {
+          state: "visible",
+          timeout: 5000,
+        });
         console.log(`Found username field with selector: ${selector}`);
         usernameFieldFound = true;
         break;
@@ -39,23 +45,26 @@ async function linkedinLogin(page, email, password) {
         console.log(`Selector ${selector} not found: ${error.message}`);
       }
     }
-    
+
     if (!usernameFieldFound) {
-      throw new Error('Could not find username field with any selector');
+      throw new Error("Could not find username field with any selector");
     }
-    
+
     // Wait for password field
     const passwordSelectors = [
       'input[type="password"]',
-      '#password',
+      "#password",
       'input[name="session_password"]',
-      'input[autocomplete="current-password"]'
+      'input[autocomplete="current-password"]',
     ];
-    
+
     let passwordFieldFound = false;
     for (const selector of passwordSelectors) {
       try {
-        await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
+        await page.waitForSelector(selector, {
+          state: "visible",
+          timeout: 5000,
+        });
         console.log(`Found password field with selector: ${selector}`);
         passwordFieldFound = true;
         break;
@@ -63,26 +72,29 @@ async function linkedinLogin(page, email, password) {
         console.log(`Selector ${selector} not found: ${error.message}`);
       }
     }
-    
+
     if (!passwordFieldFound) {
-      throw new Error('Could not find password field with any selector');
+      throw new Error("Could not find password field with any selector");
     }
-    
+
     // Fill in credentials
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', password);
-    
+
     // Click submit button
     const submitSelectors = [
       'button[type="submit"]',
-      '.login__form_action_container button',
-      'button[data-litms-control-urn^="login-submit"]'
+      ".login__form_action_container button",
+      'button[data-litms-control-urn^="login-submit"]',
     ];
-    
+
     let submitButtonFound = false;
     for (const selector of submitSelectors) {
       try {
-        await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
+        await page.waitForSelector(selector, {
+          state: "visible",
+          timeout: 5000,
+        });
         console.log(`Found submit button with selector: ${selector}`);
         await page.click(selector);
         submitButtonFound = true;
@@ -91,71 +103,88 @@ async function linkedinLogin(page, email, password) {
         console.log(`Submit selector ${selector} not found: ${error.message}`);
       }
     }
-    
+
     if (!submitButtonFound) {
-      throw new Error('Could not find submit button with any selector');
+      throw new Error("Could not find submit button with any selector");
     }
-    
+
     // Wait for navigation or successful login
     await page.waitForTimeout(8000);
-    
+
     // Check if login was successful by looking for elements that indicate logged-in state
     try {
-      await page.waitForSelector('.global-nav, .feed-identity-module, .nav-item__link', { timeout: 10000 });
+      await page.waitForSelector(
+        ".global-nav, .feed-identity-module, .nav-item__link",
+        { timeout: 10000 },
+      );
       console.log("Logged in successfully");
       return;
     } catch (error) {
-      console.log("Login may have failed - checking for error messages or captcha...");
-      
+      console.log(
+        "Login may have failed - checking for error messages or captcha...",
+      );
+
       // Check for error messages
       const errorSelectors = [
-        '.alert-error',
-        '.form__label--error',
-        '.login__form_error_message',
-        '.form__label--error'
+        ".alert-error",
+        ".form__label--error",
+        ".login__form_error_message",
+        ".form__label--error",
       ];
-      
+
       for (const selector of errorSelectors) {
         const errorElement = await page.$(selector);
         if (errorElement) {
           const errorText = await errorElement.textContent();
           console.log(`Login error found: ${errorText.trim()}`);
-          if (errorText.toLowerCase().includes('invalid') || 
-              errorText.toLowerCase().includes('incorrect') ||
-              errorText.toLowerCase().includes('wrong')) {
+          if (
+            errorText.toLowerCase().includes("invalid") ||
+            errorText.toLowerCase().includes("incorrect") ||
+            errorText.toLowerCase().includes("wrong")
+          ) {
             throw new Error(`Invalid credentials: ${errorText.trim()}`);
           }
           break;
         }
       }
-      
+
       // Check for captcha or security challenge
       const captchaSelectors = [
-        '.captcha',
-        '.challenge',
-        '[data-challenge-type]',
-        'text=/security verification/i',
-        'text=/verify your identity/i'
+        ".captcha",
+        ".challenge",
+        "[data-challenge-type]",
+        "text=/security verification/i",
+        "text=/verify your identity/i",
       ];
-      
+
       for (const selector of captchaSelectors) {
         const captchaElement = await page.$(selector);
         if (captchaElement) {
-          console.log('Captcha or security challenge detected');
-          throw new Error('LinkedIn requires additional verification (captcha/security check)');
+          console.log("Captcha or security challenge detected");
+          throw new Error(
+            "LinkedIn requires additional verification (captcha/security check)",
+          );
         }
       }
-      
+
       // Check if we're still on login page or got redirected
       const currentUrl = page.url();
       console.log(`Current URL after login attempt: ${currentUrl}`);
-      
-      if (currentUrl.includes('login') || currentUrl.includes('checkpoint') || currentUrl.includes('challenge')) {
-        throw new Error(`Login failed - still on authentication page: ${currentUrl}`);
+
+      if (
+        currentUrl.includes("login") ||
+        currentUrl.includes("checkpoint") ||
+        currentUrl.includes("challenge")
+      ) {
+        throw new Error(
+          `Login failed - still on authentication page: ${currentUrl}`,
+        );
       }
-      
+
       // If we got here, assume login might have succeeded despite no global-nav
-      console.log("Login attempt completed - assuming success if not on login page");
+      console.log(
+        "Login attempt completed - assuming success if not on login page",
+      );
     }
   } catch (error) {
     console.error(`Login failed with error: ${error.message}`);
@@ -164,15 +193,15 @@ async function linkedinLogin(page, email, password) {
 }
 
 // Search Jobs Function
-async function searchJobs(page, keyword, jobType, timeFilter) {
+async function searchPosts(page, keyword, jobType, timeFilter) {
   console.log("Searching jobs...");
-  const searchUrl = `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(
+  const searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(
     keyword + " " + jobType,
   )}&f_TPR=${timeFilter}`;
 
   await page.goto(searchUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 1; i++) {
     // scroll the joblist section to load more jobs
     console.log(`Scrolling to load more jobs... (${i + 1}/5)`);
 
@@ -189,7 +218,7 @@ async function searchJobs(page, keyword, jobType, timeFilter) {
 }
 
 // Scrape Jobs Function
-async function scrapeJobs(page, maxJobs = 20) {
+async function scrapeJobs(page, maxJobs = 1) {
   console.log("Scraping jobs...");
 
   const jobs = [];
@@ -236,6 +265,46 @@ async function scrapeJobs(page, maxJobs = 20) {
 
   return jobs;
 }
+async function readPostsFromPage(page) {
+  console.log("Reading posts from page...");
+
+  // const posts = [];
+  const posts = page.locator("div.feed-shared-update-v2");
+
+  const count = await posts.count();
+  console.log(`Found ${count} posts`);
+  for (let i = 0; i < count; i++) {
+    const post = posts.nth(i);
+
+    const html = await post.innerHTML();
+
+    // console.log(html);
+  }
+  for (let i = 0; i < postElements.length; i++) {
+    try {
+      const post = postElements[i];
+      const content = await post.$eval(
+        ".feed-shared-update-v2__description",
+        (el) => el.innerText.trim(),
+      );
+      const author = await post.$eval(".feed-shared-actor__name", (el) =>
+        el.innerText.trim(),
+      );
+      const timestamp = await post.$eval("time", (el) =>
+        el.getAttribute("datetime"),
+      );
+
+      posts.push({ author, content, timestamp });
+
+      console.log(
+        `Post ${i + 1} by ${author}: ${content.substring(0, 100)}...`,
+      );
+    } catch (err) {
+      console.log(`Error reading post ${i + 1}:`, err.message);
+    }
+  }
+  return posts;
+}
 
 // Save Jobs Function
 async function saveJobs(jobs, filePath) {
@@ -251,9 +320,9 @@ async function saveJobs(jobs, filePath) {
   });
 
   // Add emailStatus field to each job if not present
-  const jobsWithStatus = jobs.map(job => ({
+  const jobsWithStatus = jobs.map((job) => ({
     ...job,
-    emailStatus: job.emailStatus || "pending"
+    emailStatus: job.emailStatus || "pending",
   }));
 
   await csvWriter.writeRecords(jobsWithStatus);
@@ -263,20 +332,17 @@ async function saveJobs(jobs, filePath) {
 
 // Function to send email notification to the recruiter with the resume
 async function sendResumeEmail({
-  recruiterEmail,
-  recruiterName,
-  candidateName,
-  resumePath,
-  jobTitle,
-  companyName
+  job,
+  candidate,
+  highlights,
 }) {
   // Create transporter
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS
-    }
+      pass: process.env.GMAIL_PASS,
+    },
   });
 
   // Email content
@@ -285,29 +351,44 @@ async function sendResumeEmail({
 
     to: recruiterEmail,
 
-    subject: `Application for ${jobTitle}`,
+    subject: `Submission "${jobTitle}"`,
+    html: ` 
+      <p>Hi ${job.recruiterName || "Recruiter"},</p>
 
-    text: `
-Hello ${recruiterName || "Recruiter"},
+<p>Hope you are doing well.</p>
 
-I hope you are doing well.
+<p>
+I came across your LinkedIn post and would like to submit my profile
+for the ${job.title} position.
+</p>
 
-I am writing to apply for the ${jobTitle} position at ${companyName}.
+${candidateDetailsTable(candidate)}
 
-Please find my resume attached for your consideration.
+${jobDescriptionTable(job)}
 
-Thank you for your time and consideration.
+${relevantExperienceBox(highlights)}
 
-Best Regards,
-${candidateName}
-    `,
+<p>
+Please find my resume attached for your review.
+</p>
 
+<p>
+Looking forward to hearing from you.
+</p>
+
+<p>
+Regards,<br/>
+${candidate.name}<br/>
+${candidate.email}<br/>
+${candidate.phone}
+</p>
+  `,
     attachments: [
       {
         filename: "Resume.docx",
-        path: resumePath
-      }
-    ]
+        path: resumePath,
+      },
+    ],
   };
 
   // Send email
@@ -321,69 +402,72 @@ function generateHREmail(companyName) {
   // Clean company name: remove special characters, spaces, and convert to lowercase
   const cleanName = companyName
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .replace(/\s+/g, '');
-  
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/\s+/g, "");
+
   // Handle common company name variations
   const emailMap = {
-    'americanglobalbusinesstravel': 'amex', // American Express
-    'buildingandindustrialcontrolsystembicsys': 'bicsys',
-    'societegenerateglobalsolutioncentre': 'socgen',
-    'google': 'google',
-    'deloitte': 'deloitte',
-    'nttdatanorthamerica': 'nttdata',
-    'persistentsystems': 'persistent',
-    'docusign': 'docusign',
-    'ust': 'ust',
-    'americanexpressglobalbusinesstravel': 'amex'
+    americanglobalbusinesstravel: "amex", // American Express
+    buildingandindustrialcontrolsystembicsys: "bicsys",
+    societegenerateglobalsolutioncentre: "socgen",
+    google: "google",
+    deloitte: "deloitte",
+    nttdatanorthamerica: "nttdata",
+    persistentsystems: "persistent",
+    docusign: "docusign",
+    ust: "ust",
+    americanexpressglobalbusinesstravel: "amex",
   };
-  
-  const domain = 'company.com'; // Default domain
-  
+
+  const domain = "company.com"; // Default domain
+
   // Check if we have a special mapping
   const mappedName = emailMap[cleanName] || cleanName;
-  
+
   // Truncate if too long
-  const finalName = mappedName.length > 20 ? mappedName.substring(0, 20) : mappedName;
-  
+  const finalName =
+    mappedName.length > 20 ? mappedName.substring(0, 20) : mappedName;
+
   return `hr@${finalName}.${domain}`;
 }
 
 // Helper function to update email status in CSV
 async function updateEmailStatusInCSV(filePath, jobLink, status) {
-  const csv = require('csv-parser');
-  const fs = require('fs');
-  const path = require('path');
-  
+  const csv = require("csv-parser");
+  const fs = require("fs");
+  const path = require("path");
+
   const rows = [];
   let fileExists = fs.existsSync(filePath);
-  
+
   if (fileExists) {
     const results = [];
     await new Promise((resolve, reject) => {
       fs.createReadStream(filePath)
-        .pipe(csv({
-          mapHeaders: ({ header }) => {
-            if (header === 'TITLE') return 'title';
-            if (header === 'COMPANY') return 'company';
-            if (header === 'LINK') return 'link';
-            if (header === 'EMAIL_STATUS') return 'emailStatus';
-            return header;
-          }
-        }))
-        .on('data', (data) => {
+        .pipe(
+          csv({
+            mapHeaders: ({ header }) => {
+              if (header === "TITLE") return "title";
+              if (header === "COMPANY") return "company";
+              if (header === "LINK") return "link";
+              if (header === "EMAIL_STATUS") return "emailStatus";
+              return header;
+            },
+          }),
+        )
+        .on("data", (data) => {
           // Update status if this is the job we're looking for
           if (data.link === jobLink) {
             data.emailStatus = status;
           }
           results.push(data);
         })
-        .on('end', () => {
+        .on("end", () => {
           resolve(results);
         })
-        .on('error', reject);
+        .on("error", reject);
     });
-    
+
     // Rewrite the CSV with updated status
     const csvWriter = createCsvWriter({
       path: filePath,
@@ -394,17 +478,18 @@ async function updateEmailStatusInCSV(filePath, jobLink, status) {
         { id: "emailStatus", title: "EMAIL_STATUS" },
       ],
     });
-    
+
     await csvWriter.writeRecords(results);
   }
 }
 
 module.exports = {
   linkedinLogin,
-  searchJobs,
+  searchPosts,
   scrapeJobs,
   saveJobs,
   sendResumeEmail,
   updateEmailStatusInCSV,
-  generateHREmail
+  generateHREmail,
+  readPostsFromPage,
 };

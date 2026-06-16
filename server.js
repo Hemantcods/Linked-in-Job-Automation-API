@@ -13,8 +13,9 @@ app.use(express.json());
 // Import our LinkedIn functions
 const { 
   linkedinLogin, 
-  searchJobs, 
-  scrapeJobs, 
+  searchPosts, 
+  // scrapeJobs, 
+  readPostsFromPage, 
   saveJobs, 
   sendResumeEmail,
   updateEmailStatusInCSV,
@@ -29,7 +30,7 @@ let scrapingResults = {
 };
 
 // Endpoint to start job scraping
-app.post('/api/scrape-jobs', async (req, res) => {
+app.post('/api/scrape-posts', async (req, res) => {
   try {
     // Prevent concurrent scraping
     if (scrapingResults.status === 'running') {
@@ -76,11 +77,13 @@ app.post('/api/scrape-jobs', async (req, res) => {
       }
 
       // Search jobs
-      await searchJobs(page, searchKeyword, searchType, timeFilter);
+      await searchPosts(page, searchKeyword, searchType, timeFilter);
 
       // Scrape jobs
-      const jobs = await scrapeJobs(page, maxJobs);
-
+      // const jobs = await scrapeJobs(page, maxJobs);
+      // For demonstration, we'll read posts instead of jobs
+      const jobs = await readPostsFromPage(page);
+      console.log(jobs)
       // Save to CSV
       await saveJobs(jobs, 'linkedin_jobs.csv');
 
@@ -248,5 +251,4 @@ async function readJobsFromCSV(filePath) {
       .on('error', reject);
   });
 }
-
 module.exports = app
