@@ -5,7 +5,6 @@ const RawPostSchema = new Schema(
     scrapeJobId: {
       type: String,
       required: true,
-      index: true,
     },
 
     postUrl: {

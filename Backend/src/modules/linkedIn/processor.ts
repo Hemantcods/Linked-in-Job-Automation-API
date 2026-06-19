@@ -14,6 +14,7 @@ export async function processPosts(
   return result.map((job: any, index: number) => ({
     ...job,
     postUrl: posts[index].postUrl,
+    scrapeJobId:posts[index].scrapeJobId
   }));
 
 }
