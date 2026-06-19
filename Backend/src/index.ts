@@ -1,10 +1,18 @@
-import express from 'express'
-import LinkedInRouter from "./modules/linkedIn/linkedin.router"
-const app = express()
-const port = 3000
+import app from "./app";
+import { connectDB } from "./db/index";
+import { env } from "./config/env";
 
-app.use(express.json())
-app.use("/api/v1/linkedin",LinkedInRouter)
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+const PORT = env.PORT;
+
+async function startServer() {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    console.log(`Example app listening on port ${PORT}`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});
