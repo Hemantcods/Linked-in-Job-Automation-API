@@ -3,7 +3,9 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
 import { extractResumeText } from "../resume/parser";
 import { JsonPromptForResume } from "../../ai/prompt";
-import { generateJson } from "../../ai/ai";
+import { generateResumeJson } from "../../ai/ai";
+import {  CandidateModel } from "./candidate.model";
+import { Candidate } from "./types";
 
 export const SaveCandidate=asyncHandler(async(req:Request,res:Response)=>{
     const {filePath}=req.body
@@ -17,9 +19,20 @@ export const SaveCandidate=asyncHandler(async(req:Request,res:Response)=>{
     // call the llm
     console.log(resumeText)
     const prompt=JsonPromptForResume(resumeText)
-    const ResumeData=await generateJson(prompt)
-    console.log(ResumeData)
+    const ResumeData:Candidate=await generateResumeJson(prompt)
+    // store the resume data in the db
+    const candidate=await CandidateModel.findOneAndUpdate({
+        email:ResumeData.email,
+    },{
+        ...ResumeData,
+        resumeFilePath:filePath,
+        parsedAt:new Date(),
+    },{
+        upsert:true,
+        new:true,
+    })
     res.status(200).json({
-        data:ResumeData
+        status:"success",
+        candidate
     })
 })
