@@ -42,3 +42,37 @@ ${post}
   .join("\n\n====================\n\n")}
 `;
 }
+
+export function JsonPromptForResume(resumeText: string) {
+  return `You are a resume parser.
+
+Extract candidate information.
+
+Return ONLY valid JSON.
+
+{
+  "name": "",
+  "email": "",
+  "phone": "",
+  "location": "",
+  "skills": [],
+  "experienceYears": "",
+  "projects": [
+    {
+      "name": "",
+      "skillsUsed": [],
+      "summary": ""
+    }
+  ],
+  "experience": [
+    {
+      "title": "",
+      "company": "",
+      "summary": ""
+    }
+  ]
+}
+
+Resume:
+${resumeText}`;
+}
