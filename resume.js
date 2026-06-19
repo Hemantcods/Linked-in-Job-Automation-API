@@ -1,14 +1,10 @@
 const mammoth = require("mammoth");
-const {
-  Document,
-  Paragraph,
-  Packer
-} = require("docx");
+const { Document, Paragraph, Packer } = require("docx");
 
 async function extractResumeText(filePath) {
   try {
     const result = await mammoth.extractRawText({
-      path: filePath
+      path: filePath,
     });
 
     return result.value;
@@ -18,16 +14,19 @@ async function extractResumeText(filePath) {
   }
 }
 
-const fs = require('fs');
-const PizZip = require('pizzip');
-const Docxtemplater = require('docxtemplater');
+const fs = require("fs");
+const PizZip = require("pizzip");
+const Docxtemplater = require("docxtemplater");
+const { json } = require("stream/consumers");
+const { JsonPromptForResume } = require("./data");
+const { generateJson } = require("./ai");
 
 function renderResume(templatePath, tailoredData, outputPath) {
-  const content = fs.readFileSync(templatePath, 'binary');
+  const content = fs.readFileSync(templatePath, "binary");
   const zip = new PizZip(content);
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
   doc.render(tailoredData);
-  const buf = doc.getZip().generate({ type: 'nodebuffer' });
+  const buf = doc.getZip().generate({ type: "nodebuffer" });
   fs.writeFileSync(outputPath, buf);
 }
 
@@ -45,4 +44,8 @@ const tailoredData = {
   ],
 };
 
-renderResume('./resume.docx', tailoredData, './tailored_resume.docx');
+module.exports={
+  extractResumeText,
+  renderResume,
+}
+// renderResume('./resume.docx', tailoredData, './tailored_resume.docx');

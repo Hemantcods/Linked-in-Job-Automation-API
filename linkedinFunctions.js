@@ -3,7 +3,11 @@ const { chromium } = require("playwright");
 const createCsvWriter = require("csv-writer").createObjectCsvWriter;
 const fs = require("fs");
 const dotenv = require("dotenv");
-const { candidateDetailsTable, jobDescriptionTable, relevantExperienceBox } = require("./data");
+const {
+  candidateDetailsTable,
+  jobDescriptionTable,
+  relevantExperienceBox,
+} = require("./data");
 dotenv.config();
 
 // LinkedIn Login Function
@@ -22,64 +26,12 @@ async function linkedinLogin(page, email, password) {
 
     console.log(`Current URL: ${page.url()}`);
     console.log(`Page title: ${await page.title()}`);
-
-    // Wait for the username field to be present and visible with multiple selector attempts
-    const usernameSelectors = [
-      'input[type="email"]',
-      "#username",
-      'input[name="session_key"]',
-      'input[autocomplete="username"]',
-    ];
-
-    let usernameFieldFound = false;
-    for (const selector of usernameSelectors) {
-      try {
-        await page.waitForSelector(selector, {
-          state: "visible",
-          timeout: 5000,
-        });
-        console.log(`Found username field with selector: ${selector}`);
-        usernameFieldFound = true;
-        break;
-      } catch (error) {
-        console.log(`Selector ${selector} not found: ${error.message}`);
-      }
-    }
-
-    if (!usernameFieldFound) {
-      throw new Error("Could not find username field with any selector");
-    }
-
-    // Wait for password field
-    const passwordSelectors = [
-      'input[type="password"]',
-      "#password",
-      'input[name="session_password"]',
-      'input[autocomplete="current-password"]',
-    ];
-
-    let passwordFieldFound = false;
-    for (const selector of passwordSelectors) {
-      try {
-        await page.waitForSelector(selector, {
-          state: "visible",
-          timeout: 5000,
-        });
-        console.log(`Found password field with selector: ${selector}`);
-        passwordFieldFound = true;
-        break;
-      } catch (error) {
-        console.log(`Selector ${selector} not found: ${error.message}`);
-      }
-    }
-
-    if (!passwordFieldFound) {
-      throw new Error("Could not find password field with any selector");
-    }
-
     // Fill in credentials
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
+    const emailInput = page.locator('input[type="email"]').first();
+
+    await emailInput.click();
+    await emailInput.fill(email);
+    // TODO fix the login system
 
     // Click submit button
     const submitSelectors = [
@@ -331,11 +283,7 @@ async function saveJobs(jobs, filePath) {
 }
 
 // Function to send email notification to the recruiter with the resume
-async function sendResumeEmail({
-  job,
-  candidate,
-  highlights,
-}) {
+async function sendResumeEmail({ job, candidate, highlights, resumePath }) {
   // Create transporter
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -349,9 +297,9 @@ async function sendResumeEmail({
   const mailOptions = {
     from: process.env.GMAIL_USER,
 
-    to: recruiterEmail,
+    to: job.recruterEmail,
 
-    subject: `Submission "${jobTitle}"`,
+    subject: `Submission "${job.title}"`,
     html: ` 
       <p>Hi ${job.recruiterName || "Recruiter"},</p>
 
@@ -483,6 +431,55 @@ async function updateEmailStatusInCSV(filePath, jobLink, status) {
   }
 }
 
+/**
+ * Allows for manual login to create a session state file.
+ * This is useful when automated login fails due to CAPTCHA or other security checks.
+ * @param {string} stateFilePath - The path to save the session state file.
+ */
+async function createManualLoginSession(stateFilePath = "state.json") {
+  console.log("Starting manual login session creation...");
+  const browser = await chromium.launch({ headless: false });
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  try {
+    console.log("Navigating to LinkedIn login page...");
+    await page.goto("https://www.linkedin.com/login", {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
+
+    console.log("\n==================================================");
+    console.log(
+      "Please log in to your LinkedIn account manually in the browser window.",
+    );
+    console.log("The script will continue automatically after successful login.");
+    console.log("==================================================\n");
+
+    // Wait for successful login, which is usually a navigation to the feed.
+    await page.waitForURL("https://www.linkedin.com/feed/**", {
+      timeout: 300000, // 5 minutes timeout for manual login
+    });
+
+    console.log("Login successful! Saving session state...");
+
+    // Save the session state to the specified file
+    await context.storageState({ path: stateFilePath });
+
+    console.log(`Session state saved successfully to ${stateFilePath}`);
+    console.log("You can now run the scraper, which will use this saved session.");
+  } catch (error) {
+    console.error("Error during manual login session creation:", error);
+    if (error.name === "TimeoutError") {
+      console.error("Login was not completed within the 5-minute time limit.");
+    }
+    throw error;
+  } finally {
+    console.log("Closing browser.");
+    await browser.close();
+  }
+}
+
 module.exports = {
   linkedinLogin,
   searchPosts,
@@ -492,4 +489,5 @@ module.exports = {
   updateEmailStatusInCSV,
   generateHREmail,
   readPostsFromPage,
+  createManualLoginSession,
 };

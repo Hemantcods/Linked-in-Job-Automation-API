@@ -139,7 +139,7 @@ function relevantExperienceBox(points = []) {
   `;
 }
 
-function JsonPrompt(Post_text) {
+function JsonPromptFromPost(Post_text) {
   return `
     You are an information extraction system.
 
@@ -155,7 +155,7 @@ Rules:
 JSON Schema:
 
 {
-  "jobTitle": "",
+  "title": "",
   "companyName": "",
   "recruiterName": "",
   "location": "",
@@ -230,7 +230,7 @@ module.exports = {
   candidateDetailsTable,
   jobDescriptionTable,
   relevantExperienceBox,
-  JsonPrompt,
+  JsonPromptFromPost,
   JsonPromptForResume,
   JsonPromptForHighlight
 };
