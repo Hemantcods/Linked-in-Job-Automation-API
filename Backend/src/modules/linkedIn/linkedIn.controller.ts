@@ -5,7 +5,7 @@ import { scrapeLinkedInPosts } from "./scraper";
 import { PostData } from "./types";
 import { RawPost, RawPostModel } from "./rawpost.model";
 import { isWithin24Hours, parseLinkedInTime } from "../../utils/linkedin";
-import { count } from "node:console";
+import { processPosts } from "./processor";
 
 export const ScrapePosts=asyncHandler(async(req:Request,res:Response)=>{
     const {querry}=req.body
@@ -56,3 +56,42 @@ export const ScrapePosts=asyncHandler(async(req:Request,res:Response)=>{
 
 })
 
+
+export const ProcessPosts=asyncHandler(async(req:Request,res:Response)=>{
+    const {scrapeJobId}=req.params
+    if (!scrapeJobId){
+        throw new AppError("Please provide scrapeJobId",409)
+    }
+    console.log(scrapeJobId)
+    const posts=await RawPostModel.find({
+        scrapeJobId,
+        // processingStatus:"pending",
+    })
+    if (!posts.length){
+        throw new AppError("No pending Post found with given Scrape id",404)
+    }
+    await RawPostModel.updateMany(
+      {
+        _id: {
+          $in: posts.map((p) => p._id),
+        },
+      },
+      {
+        processingStatus: "processing",
+      }
+    );
+    // Process with LLM
+    const jobs = await processPosts(posts);
+    
+    if (!jobs.length){
+        await RawPostModel.updateMany({
+            _id:{
+                $in:posts.map((p)=>p._id),
+            }
+        },{
+            processingStatus:"pending"
+        })
+        throw new AppError("Processing the posts failed",404)
+    }
+    
+})
