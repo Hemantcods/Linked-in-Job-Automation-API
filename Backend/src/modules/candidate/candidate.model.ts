@@ -1,4 +1,4 @@
-import { InferSchemaType, Schema, model } from "mongoose";
+import { HydratedDocument, InferSchemaType, Schema, model } from "mongoose";
 
 const CandidateSchema = new Schema(
   {
@@ -8,13 +8,16 @@ const CandidateSchema = new Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      index:true,
     },
 
     name: {
       type: String,
       required: true,
+    },linkedin:{
+      type:String,
+      default:null
     },
-
     phone: {
       type: String,
       default: null,
@@ -65,15 +68,12 @@ const CandidateSchema = new Schema(
     timestamps: true,
   }
 );
-
-CandidateSchema.index(
-  { email: 1 },
-  { unique: true }
-);
-
 export type Candidate = InferSchemaType<
   typeof CandidateSchema
 >;
+
+export type  CandidateDocumet=
+  HydratedDocument<Candidate>;
 
 export const CandidateModel = model(
   "Candidate",

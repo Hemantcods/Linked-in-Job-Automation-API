@@ -55,6 +55,7 @@ Return ONLY valid JSON.
   "email": "",
   "phone": "",
   "location": "",
+  "linkedin":"",
   "skills": [],
   "experienceYears": "",
   "projects": [

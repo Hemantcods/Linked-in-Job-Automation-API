@@ -1,4 +1,4 @@
-import { InferSchemaType, Schema, model } from "mongoose";
+import { HydratedDocument, InferSchemaType, Schema, model } from "mongoose";
 
 const JobSchema = new Schema(
   {
@@ -85,6 +85,9 @@ JobSchema.index({ title: 1 });
 JobSchema.index({ createdAt: -1 });
 
 export type Job = InferSchemaType<typeof JobSchema>;
+
+export type JobDocument =
+  HydratedDocument<Job>;
 
 export const JobModel = model(
   "Job",
