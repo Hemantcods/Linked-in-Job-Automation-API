@@ -6,3 +6,7 @@ export interface SendEmail{
     resumePath:string,
     highlights:string[]
 }
+export interface ApplicationHighlight{
+    highlights:string[],
+    resumeEnhancements:string[]
+}

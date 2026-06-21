@@ -1,45 +1,46 @@
+import { Candidate } from "../modules/candidate/candidate.model";
+import { Job } from "../modules/job/job.model";
+
 export function JsonPromptFromPost(posts: string[]) {
+  const formattedPosts = posts.map((post, index) => ({
+    index,
+    content: post,
+  }));
+
   return `
 You are an information extraction system.
 
-Extract internship/job information from each LinkedIn post.
+Extract job information from each LinkedIn post.
 
 Rules:
 - Return ONLY valid JSON.
-- Return an ARRAY.
-- Return exactly ${posts.length} objects.
-- Maintain the same order as the input posts.
-- If a post is not a job/internship opportunity return all fields as null.
-- Use null for missing fields.
-- Do not hallucinate.
--Extract only technical skills,tools,frameworks,programming languages,platforms.
--Do NOT include(in skills):hashtags,locations,hiring tags,job tags,employment tags.
-Schema:
+- Do not wrap the response in markdown.
+- Do not add explanations.
+- Preserve the input index exactly.
+- Return one object for each input post.
+- If a post is not a job post, return all fields as null/empty values.
+- Extract only information explicitly present in the post.
+
+Output Schema:
 
 [
   {
-    "title": null,
-    "companyName": null,
-    "recruiterName": null,
-    "location": null,
-    "employmentType": null,
-    "experienceRequired": null,
+    "index": 0,
+    "title": "",
+    "companyName": "",
+    "recruiterName": "",
+    "location": "",
+    "employmentType": "",
+    "experienceRequired": "",
     "skills": [],
-    "email": null,
-    "linkedinProfile": null
+    "email": "",
+    "linkedinProfile": "",
+    "jobSummary": ""
   }
 ]
 
 Posts:
-
-${posts
-  .map(
-    (post, i) => `
-POST ${i + 1}:
-${post}
-`,
-  )
-  .join("\n\n====================\n\n")}
+${JSON.stringify(formattedPosts, null, 2)}
 `;
 }
 
@@ -76,4 +77,31 @@ Return ONLY valid JSON.
 
 Resume:
 ${resumeText}`;
+}
+export function JsonPromptForApplication(
+  candidate: Candidate,
+  job: Job
+) {
+  return `
+You are a recruiter assistant.
+
+Candidate:
+${JSON.stringify(candidate)}
+
+Job:
+${JSON.stringify(job)}
+
+Tasks:
+
+1. Generate 5 concise highlights for an outreach email.
+2. Generate up to 5 resume enhancement bullet points that make the candidate's existing experience more relevant to the job.
+3. Do not invent any skills, projects, companies, or experience.
+
+Return ONLY valid JSON:
+
+{
+  "highlights": [],
+  "resumeEnhancements": []
+}
+`;
 }

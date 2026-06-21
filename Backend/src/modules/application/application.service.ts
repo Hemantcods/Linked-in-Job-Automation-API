@@ -1,8 +1,10 @@
 import nodemailer from "nodemailer";
-import { SendEmail } from "./application.types";
+import { ApplicationHighlight, SendEmail } from "./application.types";
 import { Candidate, CandidateDocumet } from "../candidate/candidate.model";
 import { Job, JobDocument } from "../job/job.model";
 import { ApplicationBatchModel, ApplicationModel } from "./application.model";
+import { JsonPromptForApplication } from "../../ai/prompt";
+import { generateJson } from "../../ai/ai";
 export async function sendResumeEmail({
   job,
   candidate,
@@ -229,12 +231,8 @@ async function processSingleApplication(
     return;
   }
   // //   TODO implement highlight and resume update feature
-  //   const highlights =
-  //     await generateHighlights(
-  //       candidate,
-  //       job
-  //     );
-  const highlights = ["hi", "hi"];
+  const ApplicationPrompt=JsonPromptForApplication(candidate,job)
+  const {highlights,resumeEnhancements}=await generateJson<ApplicationHighlight>(ApplicationPrompt)
   const resumePath = "./uploads/resume.docx";
   await sendResumeEmail({ job, candidate, highlights, resumePath });
   await ApplicationModel.create({

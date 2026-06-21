@@ -3,7 +3,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
 import { extractResumeText } from "../resume/parser";
 import { JsonPromptForResume } from "../../ai/prompt";
-import { generateResumeJson } from "../../ai/ai";
+import { generateJson } from "../../ai/ai";
 import {  CandidateModel } from "./candidate.model";
 import { Candidate } from "./types";
 
@@ -17,9 +17,8 @@ export const SaveCandidate=asyncHandler(async(req:Request,res:Response)=>{
         throw new AppError("Resume is Empty",404)
     }
     // call the llm
-    console.log(resumeText)
     const prompt=JsonPromptForResume(resumeText)
-    const ResumeData:Candidate=await generateResumeJson(prompt)
+    const ResumeData:Candidate=await generateJson<Candidate>(prompt)
     // store the resume data in the db
     const candidate=await CandidateModel.findOneAndUpdate({
         email:ResumeData.email,
