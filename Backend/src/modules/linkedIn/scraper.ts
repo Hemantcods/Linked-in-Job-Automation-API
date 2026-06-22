@@ -79,14 +79,23 @@ async function scrapeLinkedInPosts(query: String) {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
+
+    await page
+      .getByRole("button", {
+        name: /date posted/i,
+      })
+      .click();
+
+    await page.getByText("Past 24 hours").click();
+
+    await page.locator('a:has-text("Show results")').click();
     // Wait for content to load with multiple selector attempts
     // await waitForPostsToLoad(page);
     // await page.waitForTimeout(3000); // Additional wait for content to stabilize
     // Scroll to load more posts
-    
-    await autoScroll(page);
-    // TODO Fix scrolling 
 
+    await autoScroll(page);
+    // TODO Fix scrolling
 
     // Extract posts
     const posts = await extractPosts(page);
@@ -270,7 +279,7 @@ async function extractPosts(page: Page) {
       const postUrl = await page.evaluate(() => navigator.clipboard.readText());
       const data = await postElement.evaluate((el) => {
         // Author
-        let author=""
+        let author = "";
         // Post Content
         let content = "";
 
@@ -311,7 +320,7 @@ async function extractPosts(page: Page) {
           postedTime,
         };
       });
-      console.log(data.author)
+      console.log(data.author);
       if (data.author || data.content) {
         posts.push({ ...data, postUrl });
       }

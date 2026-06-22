@@ -5,6 +5,11 @@ import { Job, JobDocument } from "../job/job.model";
 import { ApplicationBatchModel, ApplicationModel } from "./application.model";
 import { JsonPromptForApplication } from "../../ai/prompt";
 import { generateJson } from "../../ai/ai";
+import fs from "fs";
+import path from "path";
+import mammoth from "mammoth";
+import { Document, Packer, Paragraph, HeadingLevel } from "docx";
+import { createTailoredResume } from "../resume/parser";
 export async function sendResumeEmail({
   job,
   candidate,
@@ -223,26 +228,29 @@ async function processSingleApplication(
 ) {
   // prevent duplicates
   const existing = await ApplicationModel.findOne({
-    candidateId:candidate._id,
+    candidateId: candidate._id,
     jobId: job._id,
   });
 
   if (existing) {
     return;
   }
-  // //   TODO implement highlight and resume update feature
-  const ApplicationPrompt=JsonPromptForApplication(candidate,job)
-  const {highlights,resumeEnhancements}=await generateJson<ApplicationHighlight>(ApplicationPrompt)
+  // //   TODO deleting the genrated resume after sending
+  const ApplicationPrompt = JsonPromptForApplication(candidate, job);
+  const { highlights, resumeEnhancements } =
+  await generateJson<ApplicationHighlight>(ApplicationPrompt);
   const resumePath = "./uploads/resume.docx";
-  await sendResumeEmail({ job, candidate, highlights, resumePath });
-  await ApplicationModel.create({
-    batchId,
-    candidateId:candidate._id,
-    jobId: job._id,
-    recruiterEmail: job.recruiterEmail as string,
-    status: "sent",
-    appliedAt: new Date(),
-  });
+  job.recruiterEmail="hy564636@gmail.com"
+  const newResumePath=await createTailoredResume(resumePath,resumeEnhancements)
+  await sendResumeEmail({ job, candidate, highlights, resumePath:newResumePath });
+  // await ApplicationModel.create({
+  //   batchId,
+  //   candidateId: candidate._id,
+  //   jobId: job._id,
+  //   recruiterEmail: job.recruiterEmail as string,
+  //   status: "sent",
+  //   appliedAt: new Date(),
+  // });
 }
 
 export async function processApplications(

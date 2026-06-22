@@ -5,7 +5,7 @@ import { scrapeLinkedInPosts } from "./scraper";
 import { PostData } from "./types";
 import { RawPost, RawPostModel } from "./rawpost.model";
 import { isWithin24Hours, parseLinkedInTime } from "../../utils/linkedin";
-import { processPosts } from "./processor";
+import { containsEmail, processPosts } from "./processor";
 import { JobModel } from "../job/job.model";
 
 export const ScrapePosts = asyncHandler(async (req: Request, res: Response) => {
@@ -18,8 +18,9 @@ export const ScrapePosts = asyncHandler(async (req: Request, res: Response) => {
     posts = await scrapeLinkedInPosts(querry);
     // filter the lat 24 hour posts
     const filteredPosts = posts.filter((post) =>
-      isWithin24Hours(post.postedTime),
+      isWithin24Hours(post.postedTime) && containsEmail(post.content)
     );
+    console.log(filteredPosts)
     if (filteredPosts.length == 0) {
       throw new AppError("No posts found", 404);
     }
@@ -67,7 +68,8 @@ export const ProcessPosts = asyncHandler(
     console.log(scrapeJobId);
     const posts = await RawPostModel.find({
       scrapeJobId,
-    //   processingStatus: "pending",
+      // TODO
+      // processingStatus: "pending",
     });
     if (!posts.length) {
       throw new AppError("No pending Post found with given Scrape id", 404);
@@ -116,6 +118,7 @@ export const ProcessPosts = asyncHandler(
       );
       throw new AppError("Processing the posts failed", 404);
     }
+    // TODO
     // store them in the Job db
     await JobModel.insertMany(jobs,{
         ordered:false

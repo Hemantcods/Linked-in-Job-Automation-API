@@ -7,9 +7,9 @@ export async function generateJson<T>(prompt: string): Promise<T> {
       {
         role: "system",
         content: `
-You are a JSON extraction API.
-Return only valid JSON.
-`,
+      You are a JSON extraction API.
+      Return only valid JSON.
+      `,
       },
       {
         role: "user",
